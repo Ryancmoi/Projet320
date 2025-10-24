@@ -13,60 +13,109 @@ namespace ProjetI320
     internal class Pinguin
     {
         //attributs proppre au pinguin
-        public int PV = 3;
-        private Vector2 position = new Vector2(100, 200);
-        private Vector2 vitesse = new Vector2(2, 0);
+        public int PV = 1;
+        private Vector2 _position = new Vector2(100, 200);
+        private Vector2 _vitesse = new Vector2(2, 0);
         private Texture2D _texture; //image du pinguin
-        private Rectangle rectangle;
-        private int largeur = 50;
-        private int hauteur = 50;
+        private Rectangle _rectangle;
+        private int _largeur = 30;
+        private int _hauteur = 30;
 
         //attibuts du pinguin pour le projetile
-        public List<Projectile> points = new List<Projectile>();
+        public List<Projectile> projectileList = new List<Projectile>();
         public Texture2D textureProjetctile;
         private double tempsDepuisDernierTir = 0;
-        public double delaiEntreTirs = 300;//temps en millisecondes
+        public double delaiEntreTirs = 700;//temps en millisecondes
 
-        // Direction actuelle du pingouin
-        private Vector2 derniereDirection = new Vector2(0, -1); // Par défaut vers le haut
+        //direction actuelle du pingouin
+        private Vector2 derniereDirection = new Vector2(0, -1); //par defaut vers le haut
 
+        public Rectangle Rectangle
+        {
+            get { return _rectangle; }
+        }
+
+        //constructeur du pinguin
         public Pinguin(Texture2D texture, Vector2 positionInitiale)
         {
             _texture = texture;
-            position = positionInitiale;
-            vitesse = Vector2.Zero;
+            _position = positionInitiale;
+            _vitesse = Vector2.Zero;
 
-            rectangle = new Rectangle((int)position.X, (int)position.Y, largeur, hauteur);
+            _rectangle = new Rectangle((int)_position.X, (int)_position.Y, _largeur, _hauteur);
         }
 
+        //methode update qui gere le deplacement et les limites
         public void Update (GameTime frame)
         {
             KeyboardState clavier = Keyboard.GetState();
-            vitesse = Vector2.Zero;
+            _vitesse = Vector2.Zero;
 
-            //Déplacement du pinguin
-            if (clavier.IsKeyDown(Keys.W)) vitesse.Y = -2;
-            if (clavier.IsKeyDown(Keys.S)) vitesse.Y = +2;
-            if (clavier.IsKeyDown(Keys.A)) vitesse.X = -2;
-            if (clavier.IsKeyDown(Keys.D)) vitesse.X = +2;
+            //déplacement du pinguin
+            if (clavier.IsKeyDown(Keys.W)) { _vitesse.Y = -2; derniereDirection = new Vector2(0, -1); }
+            if (clavier.IsKeyDown(Keys.S)) { _vitesse.Y = +2; derniereDirection = new Vector2(0, 1); }
+            if (clavier.IsKeyDown(Keys.A)) { _vitesse.X = -2; derniereDirection = new Vector2(-1, 0); }
+            if (clavier.IsKeyDown(Keys.D)) { _vitesse.X = +2; derniereDirection = new Vector2(1, 0); }
 
-            //Gestion des limites de l'écran
-            position += vitesse;
-            position.X = MathHelper.Clamp(position.X, 0, 800 - largeur);
-            position.Y = MathHelper.Clamp(position.Y, 0, 600 - largeur);
 
-            rectangle.X = (int)position.X;
-            rectangle.Y = (int)position.Y;
+            //gestion des limites de l'ecran
+            _position += _vitesse;
+            _position.X = MathHelper.Clamp(_position.X, 0, 800 - _largeur);
+            _position.Y = MathHelper.Clamp(_position.Y, 0, 600 - _largeur);
 
-            //Tir
+            _rectangle.X = (int)_position.X;
+            _rectangle.Y = (int)_position.Y;
+
+            //tir
+            tempsDepuisDernierTir += frame.ElapsedGameTime.TotalMilliseconds;
+
+            if (clavier.IsKeyDown(Keys.Space) && tempsDepuisDernierTir >= delaiEntreTirs)
+            {
+                //calculer la position initiale selon la direction
+                Vector2 posProjectile = _position; // valeur par défaut
+                int projectileLargeur = 25;
+                int projectileHauteur = 25;
+
+                if (derniereDirection == new Vector2(0, -1)) //haut
+                    posProjectile = new Vector2(_position.X + _largeur / 2 - projectileLargeur / 2, _position.Y - projectileHauteur);
+                else if (derniereDirection == new Vector2(0, 1)) //bas
+                    posProjectile = new Vector2(_position.X + _largeur / 2 - projectileLargeur / 2, _position.Y + _hauteur);
+                else if (derniereDirection == new Vector2(-1, 0)) //gauche
+                    posProjectile = new Vector2(_position.X - projectileLargeur, _position.Y + _hauteur / 2 - projectileHauteur / 2);
+                else if (derniereDirection == new Vector2(1, 0)) //droite
+                    posProjectile = new Vector2(_position.X + _largeur, _position.Y + _hauteur / 2 - projectileHauteur / 2);
+
+                Projectile nouveauProjectile = new Projectile(textureProjetctile, posProjectile, derniereDirection);
+                projectileList.Add(nouveauProjectile);
+                tempsDepuisDernierTir = 0;
+            }
+
+            //mettre a jour tous les projectiles
+            foreach (Projectile projectile in projectileList)
+            {
+                projectile.Update();
+            }
+
+            //supprimer les projectiles qui sont hors de l'ecran
+            projectileList.RemoveAll(p => !p.EstActif);
+
 
         }
 
+        //methode pour afficher le pinguin a l'ecran
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.Draw(_texture, rectangle, Color.White);
+            //dessiner le pinguin
+            spriteBatch.Draw(_texture, _rectangle, Color.White);
+
+            //dessiner tous les projectiles
+            foreach (Projectile projectile in projectileList)
+            {
+                projectile.Draw(spriteBatch);
+            }
         }
 
+        //methode pour afficher le projectile
         public void SetProjectileTexture(Texture2D texture)
         {
             textureProjetctile = texture;
