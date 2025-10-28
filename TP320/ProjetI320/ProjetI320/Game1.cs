@@ -19,56 +19,17 @@ namespace ProjetI320
         private List<Ennemy> enemies = new List<Ennemy>();
         private Random random = new Random();
         private double tempsDepuisDernierSpawn = 0;
-        private double delaiEntreSpawns = 1000;
+        private double delaiEntreSpawns = 300;
 
         private int score = 0;
         private SpriteFont font;
 
-        enum GameState
+        private Texture2D obstacleTexture;
+        private List<Obstacle> obstacles = new List<Obstacle>();
+
+        private void SpawnInitialEnemies(int count)
         {
-            Playing,
-            GameOver
-        }
-        private GameState currentState = GameState.Playing;
-        private void RestartGame()
-        {
-            score = 0;
-            enemies.Clear();
-            pinguin1.projectileList.Clear();
-            currentState = GameState.Playing;
-        }
-
-        public Game1()
-        {
-            _graphics = new GraphicsDeviceManager(this);
-            Content.RootDirectory = "Content";
-            IsMouseVisible = true;
-        }
-
-        protected override void Initialize()
-        {
-            // TODO: Add your initialization logic here
-
-            base.Initialize();
-        }
-
-        //methode qui charge le contenu au lancement
-        protected override void LoadContent()
-        {
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            font = Content.Load<SpriteFont>("Arial");
-
-            pinguinTexture = Content.Load<Texture2D>("PinguinPixelArt");
-            pinguin1 = new Pinguin(pinguinTexture, new Vector2(100, 200));
-
-            snowBallTexture = Content.Load<Texture2D>("SnowBall");
-            pinguin1.SetProjectileTexture(snowBallTexture);
-
-            enemyTexture = Content.Load<Texture2D>("Orca");
-
-            //cree 10 ennemis au hasard des le début
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < count; i++)
             {
                 Vector2 position;
                 Vector2 direction;
@@ -101,6 +62,65 @@ namespace ProjetI320
 
                 enemies.Add(new Ennemy(enemyTexture, position, direction));
             }
+        }
+
+        enum GameState
+        {
+            Playing,
+            GameOver
+        }
+        private GameState currentState = GameState.Playing;
+        private void RestartGame()
+        {
+            score = 0;
+            enemies.Clear();
+            SpawnInitialEnemies(10);
+            pinguin1.projectileList.Clear();
+            pinguin1.ResetPosition();
+            currentState = GameState.Playing;
+        }
+
+        public Game1()
+        {
+            _graphics = new GraphicsDeviceManager(this);
+            Content.RootDirectory = "Content";
+            IsMouseVisible = true;
+        }
+
+        protected override void Initialize()
+        {
+            // TODO: Add your initialization logic here
+
+            base.Initialize();
+        }
+
+        //methode qui charge le contenu au lancement
+        protected override void LoadContent()
+        {
+            _spriteBatch = new SpriteBatch(GraphicsDevice);
+
+            font = Content.Load<SpriteFont>("Arial");
+
+            Vector2 startPosition = new Vector2(385, 250);
+            pinguinTexture = Content.Load<Texture2D>("PinguinPixelArt");
+            pinguin1 = new Pinguin(pinguinTexture, startPosition);
+
+            snowBallTexture = Content.Load<Texture2D>("SnowBall");
+            pinguin1.SetProjectileTexture(snowBallTexture);
+
+            enemyTexture = Content.Load<Texture2D>("Orca");
+
+            obstacleTexture = Content.Load<Texture2D>("Iceberg");
+
+            obstacles.Add(new Obstacle(obstacleTexture, new Vector2(150, 150)));
+            obstacles.Add(new Obstacle(obstacleTexture, new Vector2(490, 80)));
+            obstacles.Add(new Obstacle(obstacleTexture, new Vector2(600, 250)));
+            obstacles.Add(new Obstacle(obstacleTexture, new Vector2(170, 320)));
+            obstacles.Add(new Obstacle(obstacleTexture, new Vector2(430, 350)));
+
+
+            //cree 10 ennemis au hasard des le début
+            SpawnInitialEnemies(10);
 
         }
 
@@ -177,7 +197,7 @@ namespace ProjetI320
                 ennemy.Update();
             }
 
-            //collision projectile-ennemis
+            //collision projectile/ennemis
             foreach (Projectile projectile in pinguin1.projectileList.ToList())
             {
                 foreach (Ennemy ennemy in enemies.ToList())
@@ -191,7 +211,7 @@ namespace ProjetI320
                 }
             }
 
-            //collision ennemis-pinguin
+            //collision ennemis/pinguin
             foreach (Ennemy ennemi in enemies)
             {
                 foreach (var ennemy in enemies.ToList())
@@ -206,6 +226,39 @@ namespace ProjetI320
 
             enemies.RemoveAll(e => !e.EstVivant);
             pinguin1.projectileList.RemoveAll(p => !p.EstActif);
+
+            //xollision projectile/obstacle
+            foreach (Obstacle obstacle in obstacles)
+            {
+                foreach (Projectile projectile in pinguin1.projectileList.ToList())
+                {
+                    if (projectile.Rectangle.Intersects(obstacle.Rectangle))
+                    {
+                        projectile.Kill();
+                    }
+                }
+            }
+
+            //collision ennemis/obstacle
+            foreach (Obstacle obstacle in obstacles)
+            {
+                foreach (Ennemy ennemy in enemies.ToList())
+                {
+                    if (ennemy.Rectangle.Intersects(obstacle.Rectangle))
+                    {
+                        ennemy.Kill();
+                    }
+                }
+            }
+
+            //collision joueur/obstacle
+            foreach (Obstacle obstacle in obstacles)
+            {
+                if (pinguin1.Rectangle.Intersects(obstacle.Rectangle))
+                {
+                    currentState = GameState.GameOver;
+                }
+            }
 
             base.Update(gameTime);
         }
@@ -222,18 +275,29 @@ namespace ProjetI320
                 //dessiner le jeu normalement
                 pinguin1.Draw(_spriteBatch);
 
-                foreach (var ennemi in enemies)
+                foreach (Obstacle obstacle in obstacles)
+                    obstacle.Draw(_spriteBatch);
+
+                foreach (Ennemy ennemi in enemies)
                     ennemi.Draw(_spriteBatch);
 
                 _spriteBatch.DrawString(font, "Score: " + score, new Vector2(10, 10), Color.White);
             }
             else if (currentState == GameState.GameOver)
             {
-                //afficher Game Over et relancer
-                string text = "GAME OVER\nAppuyez sur R pour relancer\nAppuyez sur Escape pour quitter";
-                Vector2 size = font.MeasureString(text);
-                Vector2 position = new Vector2(400 - size.X / 2, 300 - size.Y / 2); //centrer
-                _spriteBatch.DrawString(font, text, position, Color.White);
+                string textScore = "Votre score : " + score;
+                string textGameOver = "GAME OVER\nAppuyez sur R pour relancer\nAppuyez sur Escape pour quitter";
+
+                //mesurer la taille totale pour centrer
+                Vector2 sizeGameOver = font.MeasureString(textGameOver);
+                Vector2 sizeScore = font.MeasureString(textScore);
+
+                //positionner le score au dessus de GameOver
+                Vector2 positionScore = new Vector2(400 - sizeScore.X / 2, 300 - sizeGameOver.Y / 2 - 30);
+                Vector2 positionGameOver = new Vector2(400 - sizeGameOver.X / 2, 300 - sizeGameOver.Y / 2);
+
+                _spriteBatch.DrawString(font, textScore, positionScore, Color.White);
+                _spriteBatch.DrawString(font, textGameOver, positionGameOver, Color.White);
             }
 
             _spriteBatch.End();

@@ -20,6 +20,7 @@ namespace ProjetI320
         private Rectangle _rectangle;
         private int _largeur = 30;
         private int _hauteur = 30;
+        private Vector2 _startPosition = new Vector2(0, 0);
 
         //attibuts du pinguin pour le projetile
         public List<Projectile> projectileList = new List<Projectile>();
@@ -36,14 +37,16 @@ namespace ProjetI320
         }
 
         //constructeur du pinguin
-        public Pinguin(Texture2D texture, Vector2 positionInitiale)
+        public Pinguin(Texture2D texture, Vector2 startPosition)
         {
             _texture = texture;
-            _position = positionInitiale;
+            _startPosition = startPosition;
+            _position = _startPosition;
             _vitesse = Vector2.Zero;
 
             _rectangle = new Rectangle((int)_position.X, (int)_position.Y, _largeur, _hauteur);
         }
+
 
         //methode update qui gere le deplacement et les limites
         public void Update (GameTime frame)
@@ -113,6 +116,11 @@ namespace ProjetI320
             {
                 projectile.Draw(spriteBatch);
             }
+        }
+
+        public void ResetPosition()
+        {
+            _position = _startPosition;
         }
 
         //methode pour afficher le projectile
